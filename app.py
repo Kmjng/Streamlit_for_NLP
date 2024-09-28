@@ -15,9 +15,13 @@ from collections import Counter
 import re
 import matplotlib.pyplot as plt
 
+from wordcloud import WordCloud
+
 import nltk
 from nltk.corpus import stopwords
 
+import pandas as pd 
+from textblob import TextBlob # 감성분석을 위한 NLP 라이브러리 
 
 # 영문 불용어 처리
 
@@ -34,7 +38,7 @@ def extract_words(text):
 
 
 st.title("Word Count - 영문텍스트 version")
-st.subheader("자주 등장한 단어를 찾아 줍니다")
+st.subheader("등장한 단어들을 세어 줍니다")
 
 # 사용 방법 플로우 차트
 st.subheader("💡사용 방법")
@@ -75,7 +79,7 @@ if st.button("📥분석하기"):
 
     # 결과 출력
     if most_common_words:
-        st.subheader("🗨️자주 등장한 단어:")
+        st.subheader("🗨️등장한 단어:")
         for word, count in most_common_words:
             st.write(f"{word}: {count}회")
        
@@ -93,7 +97,67 @@ if st.button("📥분석하기"):
         plt.gca().invert_yaxis()  # y축 반전
         st.pyplot(plt)  # Streamlit에 Matplotlib 그래프 표시
         
+        st.markdown("#### 🌐 단어 클라우드")
+        wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(word_counts)
+        
+        # 워드 클라우드를 Matplotlib으로 그리기
+        plt.figure(figsize=(10, 5))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')  # 축 숨기기
+        st.pyplot(plt)  # Streamlit에 워드 클라우드 표시
+        
            
     else:
         st.write("입력된 문장에서 단어를 찾을 수 없습니다.")
+
+
+    
+
+st.title("Sentiment Analysis - 영문 version")
+st.subheader("💡사용 방법")
+
+st.write("""
+1. 사용자 입력: csv 파일을 첨부합니다. 
+2. 리뷰내용의 칼럼 이름은 'contents' 으로 맞춰주세요. 
+3. '분석하기'를 누르면 리뷰 감성 분석 
+""")
+
+# 파일 업로드 위젯
+uploaded_file = st.file_uploader("CSV 파일을 업로드하세요", type="csv")
+
+
+if uploaded_file is not None:
+    # 업로드된 CSV 파일을 DataFrame으로 읽기
+    df = pd.read_csv(uploaded_file)
+    
+    # DataFrame을 화면에 표시
+    st.write("업로드된 DataFrame:")
+    st.dataframe(df)
+
+    # 3. 감성 분석 수행
+    if 'contents' in df.columns:
+        
+        def get_sentiment(text):
+            analysis = TextBlob(text)
+            return analysis.sentiment.polarity  # 감성 점수 반환 (0 ~ 1 사이)
+
+        # 감성 분석을 적용하여 새로운 칼럼 추가
+        df['sentiment'] = df['contents'].apply(get_sentiment)
+
+        # dataframe 출력
+        st.write(df[['contents', 'rating', 'sentiment']])
+        
+        
+        positive_reviews = df[(df['sentiment'] > 0) & (df['sentiment'] <= 1)]
+        negative_reviews = df[df['sentiment'] < 0]
+
+        # p/n 출력
+        st.write(f"👍긍정 리뷰: {len(positive_reviews)}개")
+        st.write(f"👎부정 리뷰: {len(negative_reviews)}개")
+    else:
+        st.error("DataFrame에는 'contents' 칼럼이 없습니다.")
+
+
+
+
 
