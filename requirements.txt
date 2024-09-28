@@ -1,6 +1,6 @@
 streamlit
-nltk
 matplotlib
+wordcloud
+nltk
 pandas
-scikit-learn
-numpy
+textblob
