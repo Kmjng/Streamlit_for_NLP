@@ -1,7 +1,8 @@
 streamlit
+nltk
 matplotlib
 pandas
 scikit-learn
 numpy
-nltk
+
 re
