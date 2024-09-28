@@ -5,7 +5,7 @@ Created on Fri Sep 20 11:12:56 2024
 @author: user
 
 # prompt 로 실행 
-cd C:/Users/user/Downloads/code/
+cd C:/ITWILL/Streamlit_for_NLP
 streamlit run app.py
 """
 
