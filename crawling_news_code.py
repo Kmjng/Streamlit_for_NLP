@@ -62,7 +62,7 @@ source = driver.page_source
 bs_obj = bs(source, 'html.parser')
 '''
 ###############
-while len(titles) < 2:  
+while len(titles) < 50:  
     time.sleep(3) 
     source = driver.page_source 
     bs_obj = bs(source, 'html.parser')
@@ -85,10 +85,13 @@ while len(titles) < 2:
                 dates_str.append(d.get_text().strip())
         
         for time_str in dates_str:
-            if 'hrs ago' in time_str:
+            if 'hrs ago' in time_str or 'hr ago' in time_str:
                 # "X hrs ago"인 경우 시간을 추출하고 그만큼 현재 시간에서 뺌
                 hours_ago = int(re.search(r'(\d+)', time_str).group(1))
                 date = now - timedelta(hours=hours_ago)
+            elif 'mins ago' in time_str:
+                mins_ago = int(re.search(r'(\d+)', time_str).group(1)) 
+                date = now - timedelta(minutes = mins_ago)
             elif 'day ago' in time_str or 'days ago' in time_str:
                 # "X day ago"인 경우 날짜를 추출하고 그만큼 현재 날짜에서 뺌
                 days_ago = int(re.search(r'(\d+)', time_str).group(1))
@@ -101,7 +104,7 @@ while len(titles) < 2:
             dates.append(date.strftime('%Y-%m-%d'))  
             
             
-    if len(titles) == 2:
+    if len(titles) == 50:
         
         break
     
@@ -129,8 +132,8 @@ driver.quit()
 
 
 
-
-df = pd.DataFrame({'date':dates, 'head-line':titles,  'outline':outlines})
+# df = pd.DataFrame({'date':dates, 'head-line':titles,  'outline':outlines})
+df = pd.DataFrame({ 'head-line':titles,  'outline':outlines})
 
 
 

@@ -19,6 +19,7 @@ from wordcloud import WordCloud
 
 import nltk
 from nltk.tokenize import word_tokenize
+from nltk import pos_tag
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import pandas as pd 
@@ -35,7 +36,6 @@ nltk.download('wordnet')
 nltk.download('omw-1.4')
 nltk.download('punkt_tab') # NLTK punkt 리소스 다운로드 (토큰화에 쓰임)
 
-# 영문 불용어 처리
 
 # NLTK 불용어 다운로드
 nltk.download('stopwords')
@@ -196,19 +196,25 @@ st.write("""
 """)
 
 def preprocessing(words_list):
-    
     stop_words = set(stopwords.words('english'))
-    # 불용어를 제외한 단어 리스트 반환
-    words = [[word for word in sentence if word.lower() not in stop_words] for sentence in words_list]
+
+    # 불용어 제거
+    words = [[word for word in w if word.lower() not in stop_words] for w in words_list]
+    # 's, 've 패턴 제거
+    words = [[re.sub(r"'\w+", '', word) for word in w] for w in words]
+    # 특수문자 제거
+    words = [[re.sub(r'[^\w\s]', '', word) for word in w] for w in words]
 
     corpus_list = []
     lemmatizer = WordNetLemmatizer()
 
+    # 각 문장별로 처리
     for corpus in words:
+        
         lemmatized_corpus = [lemmatizer.lemmatize(word, pos='n') for word in corpus]  # 표제어 추출
         corpus_list.append(lemmatized_corpus)
-    return corpus_list    
 
+    return corpus_list
 
 # 파일 업로드 위젯
 uploaded_file2 = st.file_uploader("CSV 파일을 업로드하세요", type="csv" , key="uploader2")
@@ -242,7 +248,7 @@ if uploaded_file2 is not None:
     # CoherenceModel로 적절한 토픽 수 선정하기 
     # (응집도는 토픽을 구성하는 단어들의 관련성이 얼마나 높은지를 측정)
     coherence_score = [] 
-    for num_topics in range(2, 6):
+    for num_topics in range(2, 10):
         lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, 
                                                     num_topics=num_topics, passes=10)
         coherence_model_lda = gensim.models.CoherenceModel(model=lda_model, texts=tokenized_words, 
@@ -255,10 +261,10 @@ if uploaded_file2 is not None:
         coherence_score.append(coherence_lda)
 
     k=[]
-    for i in range(2,6):
+    for i in range(2,10):
         k.append(i)
     
-    x = k
+    x = k # 2,3,4,5~,10
     y= coherence_score
     plt.title('Topic Coherence')
     plt.plot(x,y)
@@ -268,9 +274,10 @@ if uploaded_file2 is not None:
     # Streamlit에 그래프 표시
     st.pyplot(plt)
     st.write(f"👍가장 높은 점수를 갖는 토픽 수가 적절합니다.")
-
-    # 예시로 토픽수 2개 선정
-    final_model = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=2, passes= 5)
+    
+    # coherence가 가장 큰 숫자의 인덱스 번호 가져오기
+    max_index = coherence_score.index(max(coherence_score))
+    final_model = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=max_index+2, passes= 5)
     final_model.print_topics(num_words= 4) # 토픽 당 나타낼 단어 수
     
     # LDA 시각화
@@ -282,9 +289,5 @@ if uploaded_file2 is not None:
     
     # HTML로 pyLDAvis 출력
     html = pyLDAvis.prepared_data_to_html(prepared_data)
-    components.html(html, height=800)  # 높이는 필요에 따라 조정
-    
-    
-
-
+    components.html(html, height=800, width=1250)   # 높이는 필요에 따라 조정
 
