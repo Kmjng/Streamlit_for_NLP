@@ -1,6 +1,9 @@
+numpy
 streamlit
 matplotlib
 wordcloud
 nltk
 pandas
 textblob
+gensim
+pyLDAvis

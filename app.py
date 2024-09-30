@@ -24,6 +24,12 @@ from nltk.stem import WordNetLemmatizer
 import pandas as pd 
 from textblob import TextBlob # 감성분석을 위한 NLP 라이브러리 
 
+import gensim
+from gensim import corpora # 단어 토큰과 매칭
+
+import pyLDAvis
+import pyLDAvis.gensim_models as gensimvis
+
 # NLTK 데이터 다운로드 (최초 1회)
 nltk.download('wordnet')
 nltk.download('omw-1.4')
@@ -177,7 +183,9 @@ if uploaded_file1 is not None:
 #################
 ######### 기능 3. 
 #################
- 
+# 대신, HTML로 변환하여 표시
+import streamlit.components.v1 as components
+
 st.title("3. News Topic - 영문 version")
 st.subheader("💡사용 방법")
 
@@ -187,16 +195,19 @@ st.write("""
 3. '분석하기'를 누르면 Topic분석 
 """)
 
-def preprocessing(words):
-    # 정규 표현식을 사용하여 단어만 추출하고 소문자로 변환
+def preprocessing(words_list):
+    
     stop_words = set(stopwords.words('english'))
     # 불용어를 제외한 단어 리스트 반환
-    words = [word for word in words if word not in stop_words]
-    # 어간추출 (표제어 추출, Lemmatization 활용)
+    words = [[word for word in sentence if word.lower() not in stop_words] for sentence in words_list]
+
+    corpus_list = []
     lemmatizer = WordNetLemmatizer()
-    lemmatized_words = [lemmatizer.lemmatize(word, pos = 'v') for word in words] # 동사 표제어 추출
-    lemmatized_words = [lemmatizer.lemmatize(word, pos = 'n') for word in lemmatized_words] # 명사 표제어 추출
-    return lemmatized_words
+
+    for corpus in words:
+        lemmatized_corpus = [lemmatizer.lemmatize(word, pos='n') for word in corpus]  # 표제어 추출
+        corpus_list.append(lemmatized_corpus)
+    return corpus_list    
 
 
 # 파일 업로드 위젯
@@ -212,30 +223,68 @@ if uploaded_file2 is not None:
     headlines_list = df['head-line'].tolist()
     outlines_list = df['outline'].tolist()
     combined_list = headlines_list + outlines_list
+
+    # 문서별로 단어 토큰화 (중첩 리스트)
+    tokenized_words = [word_tokenize(sentence.lower()) for sentence in combined_list]
     
-    # 단어로 토큰화
-    tokenized_words = [word_tokenize(sentence) for sentence in combined_list]
-    
-    tokenized_words = [word for sublist in tokenized_words for word in sublist]
-     
+    # 전처리 함수 적용  
     tokenized_words = preprocessing(tokenized_words)
+
     
-    st.write(tokenized_words)
-   
+
+    # gensim의 LDA에서 사용하는 BoW의 형태는 (단어 번호: index, 빈도)로 이뤄진 리스트 자료
+    dictionary = corpora.Dictionary(tokenized_words) 
     
-    
-    
-    
-    
-    
-    
+    dictionary.filter_extremes(no_below=2, no_above=0.5) # 빈도 2이상 포함, 전체 50% 이상 단어 제거
+    corpus = [dictionary.doc2bow(token) for token in tokenized_words] 
     
     
+    # CoherenceModel로 적절한 토픽 수 선정하기 
+    # (응집도는 토픽을 구성하는 단어들의 관련성이 얼마나 높은지를 측정)
+    coherence_score = [] 
+    for num_topics in range(2, 6):
+        lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, 
+                                                    num_topics=num_topics, passes=10)
+        coherence_model_lda = gensim.models.CoherenceModel(model=lda_model, texts=tokenized_words, 
+                                                           dictionary=dictionary, coherence='c_v')
+        coherence_lda = coherence_model_lda.get_coherence()
+          
+        st.write(f'Number of Topics: {num_topics}, Coherence Score: {coherence_lda}')
+        
+        
+        coherence_score.append(coherence_lda)
+
+    k=[]
+    for i in range(2,6):
+        k.append(i)
+    
+    x = k
+    y= coherence_score
+    plt.title('Topic Coherence')
+    plt.plot(x,y)
+    plt.xlim(2,10)
+    plt.xlabel('Number Of Topic (2-10)')
+    plt.ylabel('Cohrence Score')
+    # Streamlit에 그래프 표시
+    st.pyplot(plt)
+    st.write(f"👍가장 높은 점수를 갖는 토픽 수가 적절합니다.")
+
+    # 예시로 토픽수 2개 선정
+    final_model = gensim.models.ldamodel.LdaModel(corpus=corpus, id2word=dictionary, num_topics=2, passes= 5)
+    final_model.print_topics(num_words= 4) # 토픽 당 나타낼 단어 수
+    
+    # LDA 시각화
+    prepared_data = gensimvis.prepare(final_model, corpus, dictionary)
+    pyLDAvis.display(prepared_data)
+    
+
     
     
+    # HTML로 pyLDAvis 출력
+    html = pyLDAvis.prepared_data_to_html(prepared_data)
+    components.html(html, height=800)  # 높이는 필요에 따라 조정
     
     
-    
-    
-    
-    
+
+
+
