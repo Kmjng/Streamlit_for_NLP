@@ -130,11 +130,6 @@ driver.close()
 driver.quit() 
 
 
-print(len(titles))
-print(dates)
-print(contents)
-print(stars)
-
 df = pd.DataFrame({'date':dates, 'rating':stars, 'title':titles, 'contents':contents})
 
-df.to_csv('cosmetic_amazon_review.csv')
+df.to_csv('cosmetic_amazon_review.csv', index = False)

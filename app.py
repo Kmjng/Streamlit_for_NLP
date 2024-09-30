@@ -8,9 +8,9 @@ Created on Fri Sep 20 11:12:56 2024
 cd C:/ITWILL/Streamlit_for_NLP
 streamlit run app.py
 """
-
+import numpy as np
 import streamlit as st
-#from fts import * 
+ 
 from collections import Counter
 import re
 import matplotlib.pyplot as plt
@@ -18,10 +18,16 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 
 import nltk
+from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-
+from nltk.stem import WordNetLemmatizer
 import pandas as pd 
 from textblob import TextBlob # 감성분석을 위한 NLP 라이브러리 
+
+# NLTK 데이터 다운로드 (최초 1회)
+nltk.download('wordnet')
+nltk.download('omw-1.4')
+nltk.download('punkt_tab') # NLTK punkt 리소스 다운로드 (토큰화에 쓰임)
 
 # 영문 불용어 처리
 
@@ -34,10 +40,17 @@ def extract_words(text):
     words = re.findall(r'\b\w+\b', text.lower())
     stop_words = set(stopwords.words('english'))
     # 불용어를 제외한 단어 리스트 반환
-    return [word for word in words if word not in stop_words]
+    words = [word for word in words if word not in stop_words]
+    # 어간추출 (표제어 추출, Lemmatization 활용)
+    lemmatizer = WordNetLemmatizer()
+    lemmatized_words = [lemmatizer.lemmatize(word, pos = 'v') for word in words] # 동사 표제어 추출
+    lemmatized_words = [lemmatizer.lemmatize(word, pos = 'n') for word in lemmatized_words] # 명사 표제어 추출
+    return lemmatized_words
 
-
-st.title("Word Count - 영문텍스트 version")
+#################
+######### 기능 1. 
+#################
+st.title("1. Word Count - 영문텍스트 version")
 st.subheader("등장한 단어들을 세어 줍니다")
 
 # 사용 방법 플로우 차트
@@ -59,7 +72,7 @@ st.graphviz_chart(flowchart)
 # 기능 추가 
 st.write("""
 1. 사용자 입력: 글을 입력합니다.
-2. '분석하기'를 누르면 등장한 단어가 카운트 됩니다. 
+2. '분석하기'를 누르면 등장한 단어들이 카운트 됩니다. 
 3. 영문의 경우, 불용어 처리 기능이 들어갑니다. 
 """)
 
@@ -112,23 +125,25 @@ if st.button("📥분석하기"):
 
 
     
-
-st.title("Sentiment Analysis - 영문 version")
+#################
+######### 기능 2. 
+#################
+st.title("2. Sentiment Analysis - 영문 version")
 st.subheader("💡사용 방법")
 
 st.write("""
-1. 사용자 입력: csv 파일을 첨부합니다. 
+1. 사용자 입력: reviwe관련 csv 파일을 첨부합니다. 
 2. 리뷰내용의 칼럼 이름은 'contents' 으로 맞춰주세요. 
 3. '분석하기'를 누르면 리뷰 감성 분석 
 """)
 
 # 파일 업로드 위젯
-uploaded_file = st.file_uploader("CSV 파일을 업로드하세요", type="csv")
+uploaded_file1 = st.file_uploader("CSV 파일을 업로드하세요", type="csv", key="uploader1")
 
 
-if uploaded_file is not None:
+if uploaded_file1 is not None:
     # 업로드된 CSV 파일을 DataFrame으로 읽기
-    df = pd.read_csv(uploaded_file)
+    df = pd.read_csv(uploaded_file1)
     
     # DataFrame을 화면에 표시
     st.write("업로드된 DataFrame:")
@@ -145,19 +160,82 @@ if uploaded_file is not None:
         df['sentiment'] = df['contents'].apply(get_sentiment)
 
         # dataframe 출력
-        st.write(df[['contents', 'rating', 'sentiment']])
+        st.write("감성분석:", df[['contents', 'rating', 'sentiment']])
         
         
         positive_reviews = df[(df['sentiment'] > 0) & (df['sentiment'] <= 1)]
         negative_reviews = df[df['sentiment'] < 0]
 
         # p/n 출력
-        st.write(f"👍긍정 리뷰: {len(positive_reviews)}개")
-        st.write(f"👎부정 리뷰: {len(negative_reviews)}개")
+        st.write(f"👍긍정 리뷰: {len(positive_reviews)}개 (기준:Sentiment>0)")
+        st.write(f"👎부정 리뷰: {len(negative_reviews)}개 (기준:Sentiment<0)")
     else:
         st.error("DataFrame에는 'contents' 칼럼이 없습니다.")
 
 
 
+#################
+######### 기능 3. 
+#################
+ 
+st.title("3. News Topic - 영문 version")
+st.subheader("💡사용 방법")
+
+st.write("""
+1. 사용자 입력: news관련 csv 파일을 첨부합니다. 
+2. Topic관련 칼럼 이름은 'head-line'과 'outline'으로 맞춰주세요. 
+3. '분석하기'를 누르면 Topic분석 
+""")
+
+def preprocessing(words):
+    # 정규 표현식을 사용하여 단어만 추출하고 소문자로 변환
+    stop_words = set(stopwords.words('english'))
+    # 불용어를 제외한 단어 리스트 반환
+    words = [word for word in words if word not in stop_words]
+    # 어간추출 (표제어 추출, Lemmatization 활용)
+    lemmatizer = WordNetLemmatizer()
+    lemmatized_words = [lemmatizer.lemmatize(word, pos = 'v') for word in words] # 동사 표제어 추출
+    lemmatized_words = [lemmatizer.lemmatize(word, pos = 'n') for word in lemmatized_words] # 명사 표제어 추출
+    return lemmatized_words
 
 
+# 파일 업로드 위젯
+uploaded_file2 = st.file_uploader("CSV 파일을 업로드하세요", type="csv" , key="uploader2")
+
+
+if uploaded_file2 is not None:
+    
+    df = pd.read_csv(uploaded_file2)
+    st.write("업로드된 DataFrame:") # DataFrame을 화면에 표시
+    st.dataframe(df)
+    
+    headlines_list = df['head-line'].tolist()
+    outlines_list = df['outline'].tolist()
+    combined_list = headlines_list + outlines_list
+    
+    # 단어로 토큰화
+    tokenized_words = [word_tokenize(sentence) for sentence in combined_list]
+    
+    tokenized_words = [word for sublist in tokenized_words for word in sublist]
+     
+    tokenized_words = preprocessing(tokenized_words)
+    
+    st.write(tokenized_words)
+   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
